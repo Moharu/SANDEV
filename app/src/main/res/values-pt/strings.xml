@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">SANDEV</string>
+    <string name="action_settings">Configurações</string>
+    <string name="bluetooth_not_available">Bluetooth não disponível neste dispositivo</string>
+    <string name="device_found">Dispositivo encontrado!</string>
+    <string name="end_scan">Fim da busca</string>
+    <string name="hello_world">Olá mundo!</string>
+    <string name="searching_for_devices">Procurando dispositivos</string>
+    <string name="start_scan">Início da busca</string>
+    <string name="stopped_searching_for_devices">Parou de pesquisar por dispositivos</string>
+    <string name="clear_last">Limpar ultimo dispositivo lido</string>
+</resources>

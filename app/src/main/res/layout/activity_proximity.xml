@@ -20,4 +20,5 @@
         android:id="@+id/device_list"
         android:layout_below="@+id/toggle_scan"
         android:layout_centerHorizontal="true" />
+
 </RelativeLayout>

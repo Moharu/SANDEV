@@ -26,6 +26,7 @@ public class ProximityActivity extends Activity {
     private Boolean isInfiniteScanning = false;
     Button ToggleScanButton;
     TextToSpeech tts;
+    String lastMacAddress = "";
     private Locale pt_BR;
     private static final UUID MY_UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
 
@@ -78,6 +79,7 @@ public class ProximityActivity extends Activity {
 
     private void toggleScanView(){
         if(isInfiniteScanning){
+            lastMacAddress = "";
             deviceList.clear();
             ToggleScanButton.setText(R.string.end_scan);
         } else {
@@ -103,7 +105,7 @@ public class ProximityActivity extends Activity {
             String action = intent.getAction();
             if(BluetoothDevice.ACTION_FOUND.equals(action)){
                 BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
-                short signal = intent.getShortExtra(BluetoothDevice.EXTRA_RSSI, Short.MIN_VALUE);
+                short rssi = intent.getShortExtra(BluetoothDevice.EXTRA_RSSI, Short.MIN_VALUE);
                 String deviceName = device.getName();
                 if(deviceName.startsWith("BSA")){
                     int signalThreshold;
@@ -117,10 +119,17 @@ public class ProximityActivity extends Activity {
                         case "06": signalThreshold = -87; break;
                         case "07": signalThreshold = -91; break;
                         case "08": signalThreshold = -95; break;
+                        default: signalThreshold = -70; break;
+                    }
+                    if(rssi > signalThreshold){
+                        if(!lastMacAddress.equals(device.getAddress())){
+                            tts.speak(getString(R.string.device_found), TextToSpeech.QUEUE_FLUSH, null);
+                            deviceList.add(deviceName+" "+rssi+" dBm.");
+                            deviceList.notifyDataSetChanged();
+                            lastMacAddress = device.getAddress();
+                        }
                     }
                 }
-                deviceList.add(device.getName()+" "+signal+" dBm.");
-                deviceList.notifyDataSetChanged();
             } else if (BluetoothAdapter.ACTION_DISCOVERY_FINISHED.equals(action)){
                 Toast.makeText(ProximityActivity.this, R.string.stopped_searching_for_devices, Toast.LENGTH_SHORT).show();
                 if(isInfiniteScanning)
