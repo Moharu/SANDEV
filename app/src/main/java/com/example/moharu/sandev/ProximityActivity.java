@@ -3,6 +3,7 @@ package com.example.moharu.sandev;
 import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothSocket;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -15,6 +16,9 @@ import android.widget.Button;
 import android.widget.ListView;
 import android.widget.Toast;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.Locale;
 import java.util.UUID;
 
@@ -24,6 +28,11 @@ public class ProximityActivity extends Activity {
     ListView deviceListContainer;
     BluetoothAdapter bluetoothAdapter;
     private Boolean isInfiniteScanning = false;
+    private Boolean shouldReceive = false;
+    private InputStream mmInStream = null;
+    private OutputStream mmOutStream = null;
+    private BluetoothSocket mmSocket = null;
+    BluetoothDevice lastDevice;
     Button ToggleScanButton;
     TextToSpeech tts;
     String lastMacAddress = "";
@@ -123,21 +132,80 @@ public class ProximityActivity extends Activity {
                     }
                     if(rssi > signalThreshold){
                         if(!lastMacAddress.equals(device.getAddress())){
-                            tts.speak(getString(R.string.device_found), TextToSpeech.QUEUE_FLUSH, null);
                             deviceList.add(deviceName+" "+rssi+" dBm.");
                             deviceList.notifyDataSetChanged();
+                            lastDevice = device;
                             lastMacAddress = device.getAddress();
+                            shouldReceive = true;
+                            isInfiniteScanning = false;
+                            bluetoothAdapter.cancelDiscovery();
                         }
                     }
                 }
             } else if (BluetoothAdapter.ACTION_DISCOVERY_FINISHED.equals(action)){
-                Toast.makeText(ProximityActivity.this, R.string.stopped_searching_for_devices, Toast.LENGTH_SHORT).show();
+                if(shouldReceive){
+                    Toast.makeText(ProximityActivity.this, "Receiving stuff", Toast.LENGTH_SHORT).show();
+                    receiveMessage();
+                }
+//                Toast.makeText(ProximityActivity.this, R.string.stopped_searching_for_devices, Toast.LENGTH_SHORT).show();
                 if(isInfiniteScanning)
                     bluetoothAdapter.startDiscovery();
             } else if (BluetoothAdapter.ACTION_DISCOVERY_STARTED.equals(action)){
-                Toast.makeText(ProximityActivity.this, R.string.searching_for_devices, Toast.LENGTH_SHORT).show();
+//                Toast.makeText(ProximityActivity.this, R.string.searching_for_devices, Toast.LENGTH_SHORT).show();
             }
         }
     };
+
+    private void receiveMessage(){
+        String msgRecebida = "";
+        String mensagem = "#";
+        try {
+            mmSocket = lastDevice.createInsecureRfcommSocketToServiceRecord(MY_UUID);
+            mmSocket.connect();
+            mmOutStream = mmSocket.getOutputStream();
+            mmInStream = mmSocket.getInputStream();
+            mmOutStream.write(mensagem.getBytes());
+        } catch (Exception e) {
+            e.printStackTrace();
+            Toast.makeText(ProximityActivity.this, e.toString(), Toast.LENGTH_SHORT).show();
+            lastMacAddress = null;
+            isInfiniteScanning = true;
+            bluetoothAdapter.startDiscovery();
+            return;
+        }
+
+        int bytes;
+        while(true){
+            byte[] buffer = new byte[128];
+            try {
+                bytes = mmInStream.read(buffer);
+                mensagem = new String(buffer, "UTF-8");
+                msgRecebida = msgRecebida.concat(mensagem);
+                if(mensagem.contains("*")){
+                    msgRecebida = msgRecebida.replace("*", " ");
+                    break;
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+                Toast.makeText(ProximityActivity.this, e.toString(), Toast.LENGTH_SHORT).show();
+                break;
+            }
+        }
+
+        try {
+            mmSocket.close();
+        } catch (Exception e){
+            e.printStackTrace();
+            Toast.makeText(ProximityActivity.this, e.toString(), Toast.LENGTH_SHORT).show();
+            lastMacAddress = null;
+            isInfiniteScanning = true;
+            bluetoothAdapter.startDiscovery();
+            return;
+        }
+        tts.speak(msgRecebida, TextToSpeech.QUEUE_FLUSH, null);
+        shouldReceive = false;
+        isInfiniteScanning = true;
+        bluetoothAdapter.startDiscovery();
+    }
 
 }
